@@ -1,6 +1,7 @@
 package de.jkolodziej.hackollective
 
 import io.ktor.application.Application
+import io.ktor.application.ApplicationStopping
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import org.eclipse.jgit.api.Git
@@ -26,6 +27,12 @@ class RepositoryManager(val localPath: Path, val remoteURI: String) : AutoClosea
             Git.open(localPath.toFile()) ?: throw IllegalArgumentException("Opening repository returned null")
         }
     }.invoke()
+
+    val hackerPath: Path
+        get() = localPath.resolve("hacker")
+
+    val entityPath: Path
+        get() = localPath.resolve("entities")
 
     fun update() {
         val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF).call()
@@ -53,13 +60,22 @@ class RepositoryManager(val localPath: Path, val remoteURI: String) : AutoClosea
 
 private var manager: RepositoryManager? = null
 
-val Application.repositoryManager: RepositoryManager?
-    get() = manager
+val Application.repositoryManager: RepositoryManager
+    get() {
+        return manager ?: {
+            val localPath = Paths.get(environment.config.propertyOrNull("git.local.path")?.getString() ?: ".")
+            val remotePath = environment.config.property("git.remote.path").getString()
+            val result = RepositoryManager(localPath, remotePath)
+            manager = result
+            environment.monitor.subscribe(ApplicationStopping) {
+                manager?.close()
+            }
+            result
+        }.invoke()
+    }
 
 fun Application.startRepository() {
-    val localPath = Paths.get(environment.config.propertyOrNull("git.local.path")?.getString() ?: ".")
-    val remotePath = environment.config.property("git.remote.path").getString()
-    manager = RepositoryManager(localPath, remotePath)
+
     launch {
         while (true) {
             this@startRepository.repositoryManager?.update()

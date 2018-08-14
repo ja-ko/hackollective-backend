@@ -1,5 +1,5 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.2.51'
+    id 'org.jetbrains.kotlin.jvm' version '1.2.60'
     id 'application'
 }
 
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.51"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.60"
     compile "io.ktor:ktor-server-netty:0.9.3"
     compile "ch.qos.logback:logback-classic:1.2.1"
     compile 'com.google.code.gson:gson:2.8.5'
