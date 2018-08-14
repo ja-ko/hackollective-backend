@@ -6,15 +6,21 @@ plugins {
 group 'de.jkolodziej.hackollektive'
 version '1.0-SNAPSHOT'
 
+mainClassName = 'io.ktor.server.netty.DevelopmentEngine'
+
 repositories {
     mavenCentral()
+    jcenter()
     maven { url "https://dl.bintray.com/kotlin/ktor" }
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.51"
     compile "io.ktor:ktor-server-netty:0.9.3"
     compile "ch.qos.logback:logback-classic:1.2.1"
+    compile 'com.google.code.gson:gson:2.8.5'
+    compile 'org.eclipse.jgit:org.eclipse.jgit:5.0.2.201807311906-r'
+
 }
 
 compileKotlin {
