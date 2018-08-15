@@ -12,19 +12,23 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class RepositoryManager(val localPath: Path, val remoteURI: String) : AutoCloseable {
+class RepositoryManager(val localPath: Path, private val remoteURI: String?) : AutoCloseable {
     // TODO authentication against git repository
 
     private val log = LoggerFactory.getLogger(RepositoryManager::class.java)
-    private val git: Git = {
-        if (!Files.exists(localPath)) {
-            Files.createDirectory(localPath)
-        }
-        if (!Files.exists(localPath.resolve(".git"))) {
-            Git.cloneRepository().setURI(remoteURI).setDirectory(localPath.toFile()).call()
-                    ?: throw IllegalArgumentException("Cloning repository returned null")
+    private val git: Git? = {
+        if (remoteURI == null) {
+            null
         } else {
-            Git.open(localPath.toFile()) ?: throw IllegalArgumentException("Opening repository returned null")
+            if (!Files.exists(localPath)) {
+                Files.createDirectory(localPath)
+            }
+            if (!Files.exists(localPath.resolve(".git"))) {
+                Git.cloneRepository().setURI(remoteURI).setDirectory(localPath.toFile()).call()
+                        ?: throw IllegalArgumentException("Cloning repository returned null")
+            } else {
+                Git.open(localPath.toFile()) ?: throw IllegalArgumentException("Opening repository returned null")
+            }
         }
     }.invoke()
 
@@ -35,26 +39,28 @@ class RepositoryManager(val localPath: Path, val remoteURI: String) : AutoClosea
         get() = localPath.resolve("entities")
 
     fun update() {
-        val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF).call()
-        if (pullResult.isSuccessful) {
+        val pullResult = git?.pull()?.setFastForward(MergeCommand.FastForwardMode.FF)?.call()
+        if (pullResult != null && pullResult.isSuccessful) {
             val commits = pullResult.mergeResult.mergedCommits.size
             val changes = pullResult.fetchResult.advertisedRefs.size
             if (commits > 0) {
-                log.info("Pulled {} changes in {} commits from upstream git repository.")
+                log.info("Pulled {} changes in {} commits from upstream git repository.", changes, commits)
             }
         }
     }
 
     fun commit(message: String) {
         update()
-        val commitResult = git.commit().setMessage(message).setAll(true).setAuthor(PersonIdent("hackollective backend", "youcantmailme")).call()
-        val pushResult = git.push().call()
+        val commitResult = git?.commit()?.setMessage(message)?.setAll(true)?.setAuthor(PersonIdent("hackollective backend", "youcantmailme"))?.call()
+        val pushResult = git?.push()?.call()
         // TODO verify commit/push
-        log.info("Commited local changes to upstream")
+        if (commitResult != null && pushResult != null) {
+            log.info("Commited local changes to upstream")
+        }
     }
 
     override fun close() {
-        git.close()
+        git?.close()
     }
 }
 
@@ -68,7 +74,7 @@ val Application.repositoryManager: RepositoryManager
             val result = RepositoryManager(localPath, remotePath)
             manager = result
             environment.monitor.subscribe(ApplicationStopping) {
-                manager?.close()
+                result.close()
             }
             result
         }.invoke()
@@ -78,7 +84,7 @@ fun Application.startRepository() {
 
     launch {
         while (true) {
-            this@startRepository.repositoryManager?.update()
+            this@startRepository.repositoryManager.update()
             delay(10000)
         }
     }
