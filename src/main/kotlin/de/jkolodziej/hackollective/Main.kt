@@ -1,9 +1,6 @@
 package de.jkolodziej.hackollective
 
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
 import io.ktor.gson.gson
@@ -22,21 +19,29 @@ fun Application.startBackend() {
     }
 
     routing {
+        val hackerPath = repositoryManager.hackerPath
+        val entityPath = repositoryManager.entityPath
+        entityMapper = EntityMapper(entityPath.resolve("mapping.json"))
+
         intercept(ApplicationCallPipeline.Infrastructure) {
             val auth = call.request.authorization()
             val user = call.request.header("User")
-            if (auth == null || user == null) {
+            if (auth == null || user == null || entityMapper?.resolveEntityForKey(auth) == null) {
                 call.respondText("Authorization needed.", status = HttpStatusCode.Unauthorized)
+                this.finish()
+                return@intercept
             }
-            // TODO: check against registered Authorizations and log user
+            // TODO: log user and authorization
+
         }
 
-        val hackerPath = repositoryManager.hackerPath
-        val entityPath = repositoryManager.entityPath
-        val entityMapper = EntityMapper(entityPath.resolve("mapping.json"))
 
-        val hackerController = HackerController(this, repositoryManager)
         val entityController = EntityController(this, repositoryManager)
+        val hackerController = HackerController(this, repositoryManager)
     }
 }
 
+private var entityMapper: EntityMapper? = null
+
+val ApplicationCall.entity: EntityMapper.Entity?
+    get() = entityMapper?.resolveEntityForKey(request.authorization())

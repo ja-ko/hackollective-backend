@@ -9,7 +9,24 @@ import java.nio.file.StandardOpenOption
 
 
 class EntityMapper(private val mappingFile: Path) {
-    data class Entity(var dir: Path?, val key: String?)
+    class Entity(var dir: Path?, val key: String?) {
+        fun listItems(): List<String> {
+            return emptyList() // TODO implement
+        }
+
+        fun retrieveItem(item: String?): Path? {
+            return if (item == null) {
+                null
+            } else {
+                val result = dir?.resolve(item) // TODO prevent path traversal attacks
+                if (Files.exists(result)) {
+                    result
+                } else {
+                    null
+                }
+            }
+        }
+    }
 
     companion object {
         val gson: Gson = {
@@ -25,12 +42,12 @@ class EntityMapper(private val mappingFile: Path) {
     }
 
     fun readEntities(): List<Entity> {
-        if (Files.exists(mappingFile)) {
-            return gson.fromJson<List<Entity>?>(Files.newBufferedReader(mappingFile))?.map {
+        return if (Files.exists(mappingFile)) {
+            gson.fromJson<List<Entity>?>(Files.newBufferedReader(mappingFile))?.map {
                 Entity(mappingPath.resolve(it.dir), it.key)
             }.orEmpty()
         } else {
-            return emptyList()
+            emptyList()
         }
     }
 
@@ -40,7 +57,10 @@ class EntityMapper(private val mappingFile: Path) {
         }
     }
 
-    fun resolveEntityPathForKey(key: String): Entity? {
+    fun resolveEntityForKey(key: String?): Entity? {
+        if (key == null) {
+            return null
+        }
         return entities.find { it.key == key }
     }
 

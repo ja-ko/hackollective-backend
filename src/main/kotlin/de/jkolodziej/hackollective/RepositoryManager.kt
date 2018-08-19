@@ -70,7 +70,7 @@ val Application.repositoryManager: RepositoryManager
     get() {
         return manager ?: {
             val localPath = Paths.get(environment.config.propertyOrNull("git.local.path")?.getString() ?: ".")
-            val remotePath = environment.config.property("git.remote.path").getString()
+            val remotePath = environment.config.propertyOrNull("git.remote.path")?.getString()
             val result = RepositoryManager(localPath, remotePath)
             manager = result
             environment.monitor.subscribe(ApplicationStopping) {
@@ -80,7 +80,7 @@ val Application.repositoryManager: RepositoryManager
         }.invoke()
     }
 
-fun Application.startRepository() {
+fun Application.startRepository() { // TODO: consider removing this Module to simplify the application
 
     launch {
         while (true) {
